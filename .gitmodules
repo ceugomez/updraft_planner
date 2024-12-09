@@ -1,3 +1,9 @@
 [submodule "ompl"]
 	path = ompl
 	url = git@github.com:ompl/ompl.git
+[submodule "esa_InfoOptimizer"]
+	path = esa_InfoOptimizer
+	url = git@github.com:ceugomez/esa_InfoOptimizer.git
+[submodule "12dofAC"]
+	path = 12dofAC
+	url = git@github.com:ceugomez/12dofAC
