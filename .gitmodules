@@ -1,3 +1,6 @@
 [submodule "ompl"]
 	path = ompl
 	url = git@github.com:ompl/ompl.git
+[submodule "aircraft_sim"]
+	path = aircraft_sim
+	url = https://github.com/ceugomez/aircraft_sim
