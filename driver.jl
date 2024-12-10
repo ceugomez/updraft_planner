@@ -7,7 +7,7 @@ begin
     # define environment 
     wslim = Bounds(-30.0,30.0,-30.0,30.0,0.0,2.0);
     env = Environment(wslim, [[]], [0.0, 0.0, 1.9], [[]], [0.0, 0.0, 0.0], WindField) # ws dimensions, obstacles, init, roi (added iteratively), goal
-    agents = [Agent(acEOM, [[-1, 1], [-1, 1]], wslim)];                               # agent definition (point for now)
+    agents = [Agent(acEOM, [[-1, 1], [-1, 1], [-1, 1]], wslim)];                               # agent definition (point for now)
     planprob = PlanningProblem(env, agents)    # 
     # define and solve ROI optimization
         OptProb = OptimProblemStatement(length(planprob.agents),         # number of agents to optimize for 
@@ -18,6 +18,7 @@ begin
                                 ); 
     # define and solve planning problem
         #planprob.env.ROI = OptimizeEnvironment(OptProb, 1e-2);
-        path = plan(planprob);          
+        path = plan(planprob);   
+        print(path)       
 
 end
