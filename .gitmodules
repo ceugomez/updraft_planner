@@ -1,6 +1,6 @@
 [submodule "esa_InfoOptimizer"]
-	path = esa_InfoOptimizer
+	path = src/optim
 	url = git@github.com:ceugomez/esa_InfoOptimizer.git
 [submodule "12dofAC"]
-	path = 12dofAC
+	path = src/winds
 	url = git@github.com:ceugomez/12dofAC
