@@ -15,24 +15,17 @@ mutable struct Environment
     init::Vector{Float64}               # Initial Point,     [x,y,z]
     ROI::Vector{Vector{Float64}}        # Regions to sample, [ [x,y,z] ] 
     goal::Vector{Float64}               # Finish point       [x,y,z]
+    windField::Function
 end
 # agent definition, with equations of motion and physical dimensions
 struct Agent
     EOM::Function
-    # other stuff here, probably
+    controlBounds::Vector{Vector{Float64}}
+    wsBounds::Bounds
 end
 # structure to store problem information
-mutable struct PlanningProblemDefn
+mutable struct PlanningProblem
     env::Environment             # environent to plan in
     agents::Vector{Agent}         # agents to use 
-end
-function acEOM(x,u)
-    # simple integrator, placeholder
-    return x+0.1*normalize(u)
-end
-function plotPath2d(roi::Vector{Vector{Float64}})
-    plt.figure()
-    plt.scatter(roi[1][1], roi[1][2])
-    show()
 end
 
