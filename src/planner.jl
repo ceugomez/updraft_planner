@@ -15,14 +15,13 @@ function plan(world::PlanningProblem)::Path
     add_vertex!(g)
     push!(vertices, init_point)
     # create implicit reward function around ROIs
-    # function reward =  
+        # function reward =  
     # Set up environment
     goal = world.env.goal
     lim = world.env.lim  # Bounds
     obstacles = world.env.obstacles
-    max_iter = 10000  # Maximum number of iterations
-    dt = 0.1         # Time resolution for propagation
-
+    max_iter = 10000    # max iter
+    dt = 0.1            
     # Runtime loop
     for i in 1:max_iter
         # Sample a random point within bounds
@@ -50,7 +49,7 @@ function plan(world::PlanningProblem)::Path
             add_edge!(g, nearest_idx, length(vertices))
 
             # Check if the goal is reached
-            if norm(new_point - goal) <= dt
+            if norm(new_point - goal) <= 1.0
                 return extract_path(g, vertices, controls, init_point, goal)
             end
         end
@@ -106,7 +105,7 @@ function getBestControl(xk::Vector{Float64}, xkp1::Vector{Float64}, dt::Float64,
     best_score = -Inf
     for i in 1:10
         u = randControl(agent.controlBounds)
-        new_point = propagate(xk, u, dt, agents[1].EOM, wind)
+        new_point = agent.EOM(xk, u, dt, wind)
         score = scoreControl(new_point, xkp1)
         if score > best_score
             best_score = score
@@ -146,21 +145,4 @@ end
 
 function in_obstacle(point::Vector{Float64}, _)::Bool
     return false
-end
-
-function propagate(
-    start::Vector{Float64},
-    u::Vector{Float64},
-    dt::Float64,
-    eom::Function,
-    wind::Function
-)::Vector{Float64}
-    # convert to aircraftEOM form (thanks himanshu/ADCL!) 
-    time_interval = (0.0, dt)
-    extra_parameters = (control=u, wind=wind)
-
-    # simulate result over dt
-    simulation_result = simulate(aircraft_dynamics, start, time_interval, extra_parameters, save_at_value=dt)
-    final_state = simulation_result[end]
-    return final_state
 end
