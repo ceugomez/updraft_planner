@@ -5,68 +5,85 @@ mutable struct Path
     control::Vector{Vector{Float64}}    # vector of controls, starting from time dt, length t*dt-1
     length::Float64                     # path length in euclidean space
 end
-function plan(world::PlanningProblem)::Vector{Vector{Float64}}
-    # Initialize an empty undirected graph
+function plan(world::PlanningProblem)::Path
+    # empty undirected graph
     g = SimpleGraph()
-    vertices = Vector{Vector{Float64}}()  # Stores 3D points corresponding to graph vertices
-    
-    # Add initial point
+    vertices = Vector{Vector{Float64}}()  # Stores 3D state space points corresponding to graph vertices
+    controls = Vector{Vector{Float64}}()  # Stores control inputs corresponding to edges
+    # known initial point
     init_point = world.env.init
     add_vertex!(g)
     push!(vertices, init_point)
-    
+    # create implicit reward function around ROIs
+    # function reward =  
     # Set up environment
     goal = world.env.goal
     lim = world.env.lim  # Bounds
     obstacles = world.env.obstacles
     max_iter = 10000  # Maximum number of iterations
-    step_size = 1.0  # Step size
     dt = 0.1         # Time resolution for propagation
-    
+
     # Runtime loop
     for i in 1:max_iter
         # Sample a random point within bounds
-        if (rand()>0.5)
-            rand_point = goal
+        rand_point = if rand() > 0.5
+            goal
         else
-            rand_point = samplePoint(lim)
+            samplePoint(lim)
         end
-        
+
         # Find the nearest vertex in the graph
         nearest_idx = argmin([norm(rand_point - v) for v in vertices])
         nearest_point = vertices[nearest_idx]
-        
+
         # Find best control towards the random point
-        ustar = getBestControl(nearest_point, rand_point, dt, world.agents[1], world.env.windField)  # Assuming no wind for now
-        
+        ustar = getBestControl(nearest_point, rand_point, dt, world.agents[1], world.env.windField)
+
         # Propagate dynamics to generate a new point
         new_point = propagate(nearest_point, ustar, dt, world.agents[1].EOM, world.env.windField)
-        
+
         # Check if the new point is valid
         if isPointValid(new_point, lim, obstacles)
             add_vertex!(g)
             push!(vertices, new_point)
+            push!(controls, ustar)  # Save control corresponding to this edge
             add_edge!(g, nearest_idx, length(vertices))
-            
+
             # Check if the goal is reached
-            if norm(new_point - goal) <= step_size
-                return extract_path(g, vertices, init_point, goal)
+            if norm(new_point - goal) <= dt
+                return extract_path(g, vertices, controls, init_point, goal)
             end
         end
     end
-    
+
     error("RRT failed to find a path within the maximum number of iterations")
 end
-
-function extract_path(g::SimpleGraph, vertices::Vector{Vector{Float64}}, start::Vector{Float64}, goal::Vector{Float64})::Vector{Vector{Float64}}
+function extract_path(
+    g::SimpleGraph,
+    vertices::Vector{Vector{Float64}},
+    controls::Vector{Vector{Float64}},
+    start::Vector{Float64},
+    goal::Vector{Float64}
+)::Path
     # Extract path from graph using backtracking
-    path = [goal]
+    wp = [goal]
+    control_seq = Vector{Vector{Float64}}()
     current_idx = length(vertices)
+
     while vertices[current_idx] != start
-        current_idx = outneighbors(g, current_idx)[1]
-        push!(path, vertices[current_idx])
+        prev_idx = outneighbors(g, current_idx)[1]
+        push!(wp, vertices[prev_idx])
+        push!(control_seq, controls[current_idx-1])  # Controls are indexed by edge
+        current_idx = prev_idx
     end
-    return reverse(path)
+    # Reverse the waypoints and controls to maintain correct order
+    wp = reverse(wp)
+    control_seq = reverse(control_seq)
+
+    # Compute path length
+    path_length = sum(norm(wp[i+1] - wp[i]) for i in 1:(length(wp)-1))
+
+    return Path(wp, control_seq, path_length)
 end
 
 function samplePoint(l::Bounds)::Vector{Float64}
@@ -85,11 +102,11 @@ function randControl(ubounds::Vector{Vector{Float64}})::Vector{Float64}
 end
 
 function getBestControl(xk::Vector{Float64}, xkp1::Vector{Float64}, dt::Float64, agent::Agent, wind::Function)::Vector{Float64}
-    best_control = randControl([[0.0, 1.0], [0.0, 1.0]]) 
+    best_control = randControl(agent.controlBounds)
     best_score = -Inf
-    for i in 1:100
+    for i in 1:10
         u = randControl(agent.controlBounds)
-        new_point = propagate(xk,u,dt,agents[1].EOM, wind)
+        new_point = propagate(xk, u, dt, agents[1].EOM, wind)
         score = scoreControl(new_point, xkp1)
         if score > best_score
             best_score = score
@@ -98,10 +115,15 @@ function getBestControl(xk::Vector{Float64}, xkp1::Vector{Float64}, dt::Float64,
     end
     return best_control
 end
-
+# score a control on energy state
 function scoreControl(new_point::Vector{Float64}, goal_point::Vector{Float64})::Float64
-    # Score based on proximity to the goal and other objective
+    e = calcEnergyState()
     return -norm(new_point - goal_point)  # closer is better
+end
+# calculate the energy state of the aircraft as a function of state
+function calcEnergyState()
+
+    return nothing
 end
 
 function isPointValid(point::Vector{Float64}, lim::Bounds, obstacles::Vector{Vector{Float64}})::Bool
@@ -111,23 +133,34 @@ function isPointValid(point::Vector{Float64}, lim::Bounds, obstacles::Vector{Vec
          lim.zmin <= point[3] <= lim.zmax)
         return false
     end
-    
+
     # Check for collisions with obstacles
     for obstacle in obstacles
         if in_obstacle(point, obstacle)
             return false
         end
     end
-    
+
     return true
 end
 
-function in_obstacle(point::Vector{Float64},_)::Bool
-    # Example assumes obstacles are axis-aligned bounding boxes
+function in_obstacle(point::Vector{Float64}, _)::Bool
     return false
 end
 
-function propagate(start::Vector{Float64}, u::Vector{Float64}, dt::Float64, eom::Function, wind::Function)::Vector{Float64}
-    # Propagate dynamics from the start point with control `u` over time `dt`
-    return eom(start, u,wind)  # Assuming EOM function integrates for one timestep
+function propagate(
+    start::Vector{Float64},
+    u::Vector{Float64},
+    dt::Float64,
+    eom::Function,
+    wind::Function
+)::Vector{Float64}
+    # convert to aircraftEOM form (thanks himanshu/ADCL!) 
+    time_interval = (0.0, dt)
+    extra_parameters = (control=u, wind=wind)
+
+    # simulate result over dt
+    simulation_result = simulate(aircraft_dynamics, start, time_interval, extra_parameters, save_at_value=dt)
+    final_state = simulation_result[end]
+    return final_state
 end
