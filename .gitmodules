@@ -4,3 +4,6 @@
 [submodule "src/winds"]
 	path = src/winds
 	url = git@github.com:ceugomez/12dofAC.git
+[submodule "src/aircraft_sim."]
+	path = src/aircraft_sim
+	url = git@github.com:ceugomez/aircraft_sim.git
