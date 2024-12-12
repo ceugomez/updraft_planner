@@ -29,9 +29,25 @@ function plotPath3d(h::Path, g::PlanningProblem)
     show()
 
 end
+function visualizeWind()
+    x = y = z = -100:10:100
+    points = [(xi, yi, 50.0) for xi in x, yi in y]
 
+    # Compute wind vectors
+    winds = [windField_planner([px, py, pz]) for (px, py, pz) in points]
 
-function plot_rrt_tree(vertices::Vector{Vector{Float64}}, parents::Dict{Int, Union{Int, Nothing}}, g::Bounds)
+    # Extract components for quiver plot
+    wx = [w[1] for w in winds]
+    wy = [w[2] for w in winds]
+    wz = [w[3] for w in winds]
+
+    # Quiver plot
+    quiver([px for (px, _, _) in points], 
+        [py for (_, py, _) in points], 
+        quiver=(wx, wy), scale=0.1, color=:blue);
+end
+
+function plot_rrt_tree(vertices::Vector{Vector{Float64}}, parents::Dict{Int, Union{Int, Nothing}}, g::Bounds, xg::Vector{Float64})
     fig = figure(figsize=(10, 8))  # Create a new figure
     ax = fig.add_subplot(111, projection="3d")  # 3D subplot
 
@@ -56,8 +72,8 @@ function plot_rrt_tree(vertices::Vector{Vector{Float64}}, parents::Dict{Int, Uni
     start_x, start_y, start_z = vertices[1][1:3]  # Start point
     ax.scatter([start_x], [start_y], [start_z], color="green", s=50, label="Start")  # Start point
 
-    goal_x, goal_y, goal_z = vertices[end][1:3]  # Goal point
-    ax.scatter([goal_x], [goal_y], [goal_z], color="red", s=50, label="Goal")  # Goal point
+    # Goal point
+    ax.scatter([xg[1]], [xg[2]], [xg[3]], color="red", s=50, label="Goal")  # Goal point
 
     # Set labels and title
     ax.set_title("RRT Tree")

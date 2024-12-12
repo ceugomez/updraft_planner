@@ -4,9 +4,34 @@ include("./src/winds/generic.jl") # generic methods (wind field) from 12dofAC
 include("./src/optim/optimizer.jl") # optimizer and info field from InfoOptimizer
 include("./src/dynamics.jl")    # dynamics functions
 include("./src/visualizer.jl") #visualization functions
-function windField_planner(pos::Vector{Float64})
-    x,y,z=pos[1:3]
-    return [0.0,0.0,0.0]
+function windField_planner(pos::Vector{Float64})::Vector{Float64}
+    x, y, z = pos[1:3]
+    
+    # Define parameters for the wind field regions
+    region1_center = [50.0, 50.0, 50.0]
+    region1_radius = 40.0
+    region1_strength = 2.0  # Maximum upward flow
+
+    region2_center = [-50.0, -50.0, 50.0]
+    region2_radius = 40.0
+    region2_strength = -2.0  # Maximum downward flow
+
+    # Compute distances to the centers of the regions
+    dist1 = norm([x, y, z] - region1_center)
+    dist2 = norm([x, y, z] - region2_center)
+
+    # Compute contributions from each region (use Gaussian-like decay)
+    region1_flow = region1_strength * exp(-dist1^2 / (2 * region1_radius^2))
+    region2_flow = region2_strength * exp(-dist2^2 / (2 * region2_radius^2))
+
+    # Combine contributions
+    wz = region1_flow + region2_flow
+
+    # Add a small horizontal wind flow (optional)
+    wx = 0.5 * sin(x / 20.0)  # Horizontal flow component along x
+    wy = 0.5 * cos(y / 20.0)  # Horizontal flow component along y
+
+    return [wx, wy, wz]
 end
 function simulate_dynamics(state::Vector{Float64}, dt::Float64, interval::Float64, eom::Function, wind::Function)::Path
     # Initialize variables
@@ -37,8 +62,8 @@ begin
     # define environment - 3DOF AC model 
         wslim_AC = Bounds(-2000.0,2000.0,-2000.0,2000.0,0.0,5000.0);
         x0_AC = [-1000.0, 0.0, 4500.0, 25.0, 0.0, -0.056];                                  # initial point [x y z Vi ψ γ ]
-        xg_AC = [2000.0, 0.0, 4000.0, 20.0, 0.0, 0.0]                             # goal point [x y z Vi _ _]
-        controlLim_AC = [[-0.05, 0.05],[-0.01, 0.01]]   # [ψdot, γdot]
+        xg_AC = [-550, 450.0, 1500.0, 0.0, 0.0, 0.0]                             # goal point [x y z Vi _ _]
+        controlLim_AC = [[-0.3, 0.3],[-0.06, 0.06]]   # [ψdot, γdot]
         env_AC = Environment(wslim_AC, [[]], x0_AC, [[]],xg_AC , windField_planner)    # ws dimensions, obstacles, init, roi (added iteratively), goal
         agents_AC = [Agent(dubins_glider_dynamics, controlLim_AC, wslim_AC)];                               # agent definition 
         planprob_AC = PlanningProblem(env_AC,agents_AC)
