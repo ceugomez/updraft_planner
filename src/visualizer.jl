@@ -14,13 +14,17 @@ function plotPath3d(h::Path, g::PlanningProblem )
         x, y, z, 
         label="3D Trajectory", 
         color="Black", 
-        linewidth=1.5, 
-        zorder=8  
+        linewidth=1.5#, 
+        #zorder=8  
     )
     start = g.env.init          
     fin = g.env.goal
     ax.scatter(start[1], start[2], start[3], label="Start", color="green");
     ax.scatter(fin[1], fin[2], fin[3], label="End", color="red");
+    ax.set_xlim([g.env.lim.xmin,g.env.lim.xmax]);
+    ax.set_ylim([g.env.lim.ymin,g.env.lim.ymax]);
+    ax.set_zlim([g.env.lim.zmin,g.env.lim.zmax])
+    
     show()
 
 end

@@ -28,23 +28,23 @@ function plan(world::PlanningProblem)::Path
         rand_point = if rand() > 0.5
             goal
         else
-            samplePoint(lim)
+            samplePoint(lim)            
         end
-
         # Find the nearest vertex in the graph
-        nearest_idx = argmin([norm(rand_point - v) for v in vertices])
-        nearest_point = vertices[nearest_idx]
+        nearest_idx = argmin([norm(rand_point - v[1:3]) for v in vertices])  # Use only position
+        nearest_x = vertices[nearest_idx]
+        #nearest_point = nearest_x[1:3]
 
         # Find best control towards the random point
-        ustar = getBestControl(nearest_point, rand_point, dt, world.agents[1], world.env.windField)
+        ustar = getBestControl(nearest_x, rand_point, dt, world.agents[1], world.env.windField)
 
         # Propagate dynamics to generate a new point
-        new_point = propagate(nearest_point, ustar, dt, world.agents[1].EOM, world.env.windField)
-
+        new_x = propagate(nearest_x, ustar, dt, world.agents[1].EOM, world.env.windField)
+        new_point = new_x[1:3]
         # Check if the new point is valid
-        if isPointValid(new_point, lim, obstacles)
+        if isPointValid(new_point, lim)
             add_vertex!(g)
-            push!(vertices, new_point)
+            push!(vertices, new_x)
             push!(controls, ustar)  # Save control corresponding to this edge
             add_edge!(g, nearest_idx, length(vertices))
 
@@ -84,14 +84,14 @@ function extract_path(
 
     return Path(wp, control_seq, path_length)
 end
-
+# get a random point within bounds
 function samplePoint(l::Bounds)::Vector{Float64}
     x = rfinbounds(l.xmin, l.xmax)
     y = rfinbounds(l.ymin, l.ymax)
     z = rfinbounds(l.zmin, l.zmax)
     return [x, y, z]
 end
-
+# get a random control within bounds
 function randControl(ubounds::Vector{Vector{Float64}})::Vector{Float64}
     rf = zeros(Float64, length(ubounds))
     for i in 1:length(ubounds)
@@ -99,13 +99,13 @@ function randControl(ubounds::Vector{Vector{Float64}})::Vector{Float64}
     end
     return rf
 end
-
+# try a bunch of controls to see what works
 function getBestControl(xk::Vector{Float64}, xkp1::Vector{Float64}, dt::Float64, agent::Agent, wind::Function)::Vector{Float64}
     best_control = randControl(agent.controlBounds)
     best_score = -Inf
     for i in 1:10
         u = randControl(agent.controlBounds)
-        new_point = agent.EOM(xk, u, dt, wind)
+        new_point = propagate(xk,u,dt,agent.EOM,wind)
         score = scoreControl(new_point, xkp1)
         if score > best_score
             best_score = score
@@ -114,35 +114,25 @@ function getBestControl(xk::Vector{Float64}, xkp1::Vector{Float64}, dt::Float64,
     end
     return best_control
 end
-# score a control on energy state
+# score a control 
 function scoreControl(new_point::Vector{Float64}, goal_point::Vector{Float64})::Float64
-    e = calcEnergyState()
     return -norm(new_point - goal_point)  # closer is better
 end
-# calculate the energy state of the aircraft as a function of state
-function calcEnergyState()
-
-    return nothing
-end
-
-function isPointValid(point::Vector{Float64}, lim::Bounds, obstacles::Vector{Vector{Float64}})::Bool
-    # Check if the point is within bounds
-    if !(lim.xmin <= point[1] <= lim.xmax &&
-         lim.ymin <= point[2] <= lim.ymax &&
-         lim.zmin <= point[3] <= lim.zmax)
-        return false
-    end
-
-    # Check for collisions with obstacles
-    for obstacle in obstacles
-        if in_obstacle(point, obstacle)
-            return false
-        end
-    end
-
+# check if point is valid (airspeed threshold)
+function isPointValid(point::Vector{Float64}, _)::Bool
     return true
 end
-
-function in_obstacle(point::Vector{Float64}, _)::Bool
-    return false
+# propagate system using RK4 dynamics
+function propagate(x::Vector{Float64},u::Vector{Float64},dt::Float64,eom::Function,wind::Function)::Vector{Float64}
+    xkp1 = RK4_int_wctrl(dt,x,u,eom,wind)
+    return xkp1
+end
+# Runge-Kutta 4th-order integrator
+function RK4_int_wctrl(dt, state, u, fdot::Function, wind::Function)::Vector{Float64}
+    # assume ZOH
+    k1 = dt * fdot(state,u,wind)
+    k2 = dt * fdot(state + 0.5 * k1, u,wind)
+    k3 = dt * fdot(state + 0.5 * k2, u,wind)
+    k4 = dt * fdot(state + k3,u,wind)
+    return state + (k1 + 2 * k2 + 2 * k3 + k4) / 6.0
 end
