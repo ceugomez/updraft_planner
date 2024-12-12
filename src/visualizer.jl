@@ -29,22 +29,86 @@ function plotPath3d(h::Path, g::PlanningProblem)
     show()
 
 end
-function visualizeWind()
-    x = y = z = -100:10:100
-    points = [(xi, yi, 50.0) for xi in x, yi in y]
+function plot_wind_top_down_with_path_ac(
+    domain_x, domain_y, path::Path, height=50.0, resolution=1000, arrow_scale=0.2
+)
+    # Generate x and y vectors
+    downscale = 20
+    x_vals = LinRange(domain_x[1], domain_x[2], resolution)
+    y_vals = LinRange(domain_y[1], domain_y[2], resolution)
+    
+    # Meshgrid
+    x_coords = repeat(x_vals, 1, resolution)
+    y_coords = repeat(y_vals', resolution, 1)
 
-    # Compute wind vectors
-    winds = [windField_planner([px, py, pz]) for (px, py, pz) in points]
+    # Compute wind field at specified height
+    u = zeros(resolution, resolution)
+    v = zeros(resolution, resolution)
+    w = zeros(resolution, resolution)
+    for i in 1:resolution
+        for j in 1:resolution
+            u[i, j], v[i, j], w[i, j] = windField_planner([x_coords[i, j], y_coords[i, j], height])
+        end
+    end
 
-    # Extract components for quiver plot
-    wx = [w[1] for w in winds]
-    wy = [w[2] for w in winds]
-    wz = [w[3] for w in winds]
+    # Calculate wind magnitude
+    mag = w
 
-    # Quiver plot
-    quiver([px for (px, _, _) in points], 
-        [py for (_, py, _) in points], 
-        quiver=(wx, wy), scale=0.1, color=:blue);
+    # Normalize the vectors and scale them for the quiver plot
+    u_scaled = arrow_scale .* u
+    v_scaled = arrow_scale .* v
+
+    # Extract path waypoints for plotting
+    path_x = [waypoint[1] for waypoint in path.path]  # Extract x-coordinates
+    path_y = [waypoint[2] for waypoint in path.path]  # Extract y-coordinates
+
+    # Create the plot
+    fig = figure(figsize=(12, 9))
+    ax = fig.add_subplot(111)
+    
+    # Plot wind field magnitude
+    im = ax.imshow(
+        mag',
+        extent=(domain_x[1], domain_x[2], domain_y[1], domain_y[2]),
+        origin="lower",
+        cmap="coolwarm",
+        aspect="auto"
+    )
+    colorbar(im, ax=ax, label="Vertical Wind [m/s]")
+
+    # Plot wind vectors
+    downscale = 10
+    ax.quiver(
+        x_coords[1:downscale:end, 1:downscale:end], y_coords[1:downscale:end, 1:downscale:end], 
+        u_scaled[1:downscale:end, 1:downscale:end], v_scaled[1:downscale:end, 1:downscale:end],
+        color="black", scale=1 / arrow_scale
+    )
+
+    # Plot path trajectory
+    ax.plot(path_x, path_y, color="black", label="Path Trajectory")
+    ax.scatter(
+        path_x[1], path_y[1],
+        s=[75], alpha=1.0,
+        label="Start Point", color="green", zorder=10
+    )
+    ax.scatter(
+        path_x[end], path_y[end],
+        s=[75], alpha=1.0,
+        label="ROI Point", color="red", zorder=10
+    )
+
+    # Set axis labels and title
+    ax.set_title("Wind Field (Top-Down View at $height m)")
+    ax.set_xlabel("East [m]")
+    ax.set_ylabel("North [m]")
+    ax.set_xlim(domain_x[1:2])
+    ax.set_ylim(domain_y[1:2])
+    legend()
+
+    # Save the plot
+    fig.savefig("./windstopdown.png")
+    show()
+    return nothing
 end
 
 function plot_rrt_tree(vertices::Vector{Vector{Float64}}, parents::Dict{Int, Union{Int, Nothing}}, g::Bounds, xg::Vector{Float64})
