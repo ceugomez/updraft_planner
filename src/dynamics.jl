@@ -24,8 +24,7 @@ function dubins_glider_dynamics(state::Vector{Float64}, u::Vector{Float64}, wind
     Cl = Clα * α  # Lift coefficient (linear approximation)
     Cd = Cd0 + (Cl^2 / (π * 4.3 * 0.8))  # Drag coefficient (polar model; e ~ 0.8, AR ~ 4.3)
     D = 0.5 * ρ * v^2 * S * Cd  # Drag force
-    #L = 0.5 * ρ * v^2 * S * Cl  # Lift force
-
+    
     # get state derivatives
     dx = v * cos(γ) * cos(ψ)       # xdot
     dy = v * cos(γ) * sin(ψ)       # ydot

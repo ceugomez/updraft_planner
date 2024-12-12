@@ -7,9 +7,9 @@ function plotPath3d(h::Path, g::PlanningProblem)
     fig = figure(figsize=(12, 9))
     #
         ax = fig.add_subplot(111, projection="3d")
-        ax.set_xlabel("Easting");
-        ax.set_ylabel("Northing");
-        ax.set_zlabel("Altitude");
+        ax.set_xlabel("X");
+        ax.set_ylabel("Y");
+        ax.set_zlabel("Z");
     ax.plot(
         x, y, z, 
         label="3D Trajectory", 
@@ -28,6 +28,49 @@ function plotPath3d(h::Path, g::PlanningProblem)
     
     show()
 
+end
+
+
+function plot_rrt_tree(vertices::Vector{Vector{Float64}}, parents::Dict{Int, Union{Int, Nothing}}, g::Bounds)
+    fig = figure(figsize=(10, 8))  # Create a new figure
+    ax = fig.add_subplot(111, projection="3d")  # 3D subplot
+
+    # Loop through vertices and their parents to plot edges
+    for (child_idx, parent_idx) in parents
+        if parent_idx !== nothing
+            child = vertices[child_idx][1:3]  # Extract x, y, z
+            parent = vertices[parent_idx][1:3]  # Extract x, y, z
+
+            # Plot edge between parent and child
+            ax.plot(
+                [parent[1], child[1]],
+                [parent[2], child[2]],
+                [parent[3], child[3]],
+                color="blue",
+                linewidth=0.5
+            )
+        end
+    end
+
+    # Add start and goal points
+    start_x, start_y, start_z = vertices[1][1:3]  # Start point
+    ax.scatter([start_x], [start_y], [start_z], color="green", s=50, label="Start")  # Start point
+
+    goal_x, goal_y, goal_z = vertices[end][1:3]  # Goal point
+    ax.scatter([goal_x], [goal_y], [goal_z], color="red", s=50, label="Goal")  # Goal point
+
+    # Set labels and title
+    ax.set_title("RRT Tree")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_xlim([g.xmin,g.xmax]);
+    ax.set_ylim([g.ymin,g.ymax]);
+    ax.set_zlim([g.zmin,g.zmax])
+    ax.legend()
+
+    # Show the plot
+    show()
 end
 function plot_dubins_glider_path(path::Path, dt::Float64)
     # Extract time vector
