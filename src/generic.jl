@@ -34,30 +34,31 @@ function windField_planner(pos::Vector{Float64})::Vector{Float64}
     x, y, z = pos[1:3]
     
     # Define parameters for the wind field regions
-    region1_center = [975.0, 440.0, 50.0]
-    region1_radius = 750.0
-    region1_strength = -1.0  # m/s
+    region1_center = [-335.0, 500.0, 50.0]
+    region1_radius = 550.0
+    region1_strength = -5.0  # m/s
 
-    region2_center = [-335, -75.5, 50.0]
-    region2_radius = 450.0
-    region2_strength = 2.0  
+    region2_center = [1000, 1000, 50.0]
+    region2_radius = 550.0
+    region2_strength = 10.0  
 
-    region3_center = [1500.0, 1500.0, 50.0]
-    region3_radius = 150.0
-    region3_strength = 3.0  
+    region3_center = [-1000.0, -1000, 50.0]
+    region3_radius = 750.0
+    region3_strength = -10.0 
 
     # Compute distances to the centers of the regions
     dist1 = norm([x, y, z] - region1_center)
     dist2 = norm([x, y, z] - region2_center)
     dist3 = norm([x, y, z] - region3_center)
 
-    # Compute contributions from each region (use Gaussian-like decay)
+    # gaussian dec
     region1_flow = region1_strength * exp(-dist1^2 / (2 * region1_radius^2))
     region2_flow = region2_strength * exp(-dist2^2 / (2 * region2_radius^2))
     region3_flow = region3_strength * exp(-dist3^2 / (2 * region3_radius^2))
 
     # Superposition of contributions
-    wz_raw = region1_flow + region2_flow + region3_flow
+    #wz_raw = region1_flow + region2_flow + region3_flow
+    wz_raw = region2_flow + region3_flow
 
     # Scale updrafts logarithmically with altitude, capped at maximum value
     z_min = 1.0  # Prevent log(0)
@@ -78,7 +79,7 @@ function simulate_dynamics(state::Vector{Float64}, dt::Float64, interval::Float6
     trajectory = [state]  # Store the trajectory states
 
     # Define zero control input
-    zero_control = [-0.001, 0.00]  # Assuming the control vector has (ψ_dot, γ_dot)
+    zero_control = [-0.1, 0.00]  # Assuming the control vector has (ψ_dot, γ_dot)
 
     # Simulate until the interval limit
     while t < interval

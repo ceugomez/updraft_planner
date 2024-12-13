@@ -30,7 +30,7 @@ function plotPath3d(h::Path, g::PlanningProblem)
 
 end
 function plot_wind_top_down_with_path_ac(
-    domain_x, domain_y, path::Path, height=50.0, resolution=1000, arrow_scale=0.2
+    domain_x, domain_y, path::Path, goal::Vector{Float64}, height=50.0, resolution=1000, arrow_scale=0.2
 )
     # Generate x and y vectors
     downscale = 20
@@ -92,7 +92,7 @@ function plot_wind_top_down_with_path_ac(
         label="Start Point", color="green", zorder=10
     )
     ax.scatter(
-        path_x[end], path_y[end],
+        goal[1], goal[2],
         s=[75], alpha=1.0,
         label="ROI Point", color="red", zorder=10
     )
@@ -171,9 +171,9 @@ function plot_dubins_glider_path(path::Path, dt::Float64)
     # Create a 3D plot for trajectory
     fig = figure(figsize=(12, 9))
     ax = fig.add_subplot(111, projection="3d")
-    ax.set_xlabel("Easting")
-    ax.set_ylabel("Northing")
-    ax.set_zlabel("Altitude")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
     ax.plot(x, y, z, label="3D Trajectory", color="Black", linewidth=1.5)
     ax.legend()
     title("3D Trajectory of Dubins Glider")
